@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { BookOpenCheck, GraduationCap, MonitorPlay, PackageOpen, SquareArrowDownRight, Captions, Clapperboard, Library } from "lucide-react";
+import { BookOpenCheck, GraduationCap, MonitorPlay, PackageOpen, SquareArrowDownRight, Captions, Clapperboard, Library, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useCallback } from "react";
 import {
   Select,
   SelectTrigger,
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useRouter } from "next/navigation";
 
 type LanguageCode = "en" | "hi" | "es";
 
@@ -24,7 +26,7 @@ type ChapterContent = {
   id: string;
   title: Record<LanguageCode, string>;
   description: Record<LanguageCode, string>;
-  thumbUnsplash: string; // Unsplash image URL
+  thumbUnsplash: string;
   quiz: {
     questions: Array<{
       id: string;
@@ -34,7 +36,7 @@ type ChapterContent = {
       correctOptionId: string;
       explainer: Record<LanguageCode, string>;
     }>;
-    passThreshold: number; // 0-100
+    passThreshold: number;
   };
   reward: {
     title: Record<LanguageCode, string>;
@@ -341,6 +343,7 @@ export default function LearningModules({
   initialLanguage = "en",
   onProgressChange,
 }: LearningModulesProps) {
+  const router = useRouter();
   const [language, setLanguage] = useState<LanguageCode>(initialLanguage);
   const [activeModuleIdx, setActiveModuleIdx] = useState(0);
   const activeModule = modules[activeModuleIdx];
@@ -359,12 +362,13 @@ export default function LearningModules({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentTab, setCurrentTab] = useState<"learn" | "quiz" | "rewards">("learn");
   const [adaptiveLevel, setAdaptiveLevel] = useState<"easy" | "medium" | "hard">("easy");
+  const [randomQuizQuestions, setRandomQuizQuestions] = useState<any[]>([]);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
   const activeChapter = activeModule.chapters[activeChapterIdx];
   const activeQuiz = activeChapter.quiz;
 
   const filteredQuestions = useMemo(() => {
-    // Basic adaptive filtering: prioritize current level, ensure at least 2 questions.
     const byLevel = activeQuiz.questions.filter((q) => q.difficulty === adaptiveLevel);
     const fallback = activeQuiz.questions.slice(0, 2);
     const merged = byLevel.length >= 2 ? byLevel : Array.from(new Set([...byLevel, ...fallback]));
@@ -415,6 +419,7 @@ export default function LearningModules({
   useEffect(() => {
     setAnswers({});
     setCurrentTab("learn");
+    setRandomQuizQuestions([]);
   }, [activeChapterIdx]);
 
   // Auto move to next on completion
@@ -431,6 +436,405 @@ export default function LearningModules({
     }
     return;
   }, [chapterStates, activeChapterIdx, activeModule.chapters.length]);
+
+  // Question pool for random quizzes
+  const questionPool = useMemo(() => [
+    {
+      id: "rq-1",
+      difficulty: "easy",
+      prompt: {
+        en: "What is the capital of France?",
+        hi: "फ्रांस की राजधानी क्या है?",
+        es: "¿Cuál es la capital de Francia?"
+      },
+      options: [
+        { id: "a", label: { en: "Paris", hi: "पेरिस", es: "París" } },
+        { id: "b", label: { en: "Berlin", hi: "बर्लिन", es: "Berlín" } },
+        { id: "c", label: { en: "Madrid", hi: "मैड्रिड", es: "Madrid" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "Paris is the capital and most populous city of France.",
+        hi: "पेरिस फ्रांस की राजधानी और सबसे अधिक आबादी वाला शहर है।",
+        es: "París es la capital y la ciudad más poblada de Francia."
+      }
+    },
+    {
+      id: "rq-2",
+      difficulty: "easy",
+      prompt: {
+        en: "Which planet is known as the Red Planet?",
+        hi: "लाल ग्रह के रूप में किस ग्रह को जाना जाता है?",
+        es: "¿Qué planeta es conocido como el Planeta Rojo?"
+      },
+      options: [
+        { id: "a", label: { en: "Earth", hi: "पृथ्वी", es: "Tierra" } },
+        { id: "b", label: { en: "Mars", hi: "मंगल", es: "Marte" } },
+        { id: "c", label: { en: "Jupiter", hi: "बृहस्पति", es: "Júpiter" } }
+      ],
+      correctOptionId: "b",
+      explainer: {
+        en: "Mars appears red due to iron oxide (rust) on its surface.",
+        hi: "मंगल अपनी सतह पर आयरन ऑक्साइड (जंग) के कारण लाल दिखाई देता है।",
+        es: "Marte aparece rojo debido al óxido de hierro (óxido) en su superficie."
+      }
+    },
+    {
+      id: "rq-3",
+      difficulty: "medium",
+      prompt: {
+        en: "What is 9 × 7?",
+        hi: "9 × 7 क्या है?",
+        es: "¿Cuánto es 9 × 7?"
+      },
+      options: [
+        { id: "a", label: { en: "63", hi: "63", es: "63" } },
+        { id: "b", label: { en: "56", hi: "56", es: "56" } },
+        { id: "c", label: { en: "72", hi: "72", es: "72" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "9 times 7 equals 63.",
+        hi: "9 गुना 7 बराबर 63।",
+        es: "9 por 7 es igual a 63."
+      }
+    },
+    {
+      id: "rq-4",
+      difficulty: "medium",
+      prompt: {
+        en: "Who wrote 'Romeo and Juliet'?",
+        hi: "'रोमियो और जूलियट' किसने लिखा?",
+        es: "¿Quién escribió 'Romeo y Julieta'?"
+      },
+      options: [
+        { id: "a", label: { en: "William Shakespeare", hi: "विलियम शेक्सपियर", es: "William Shakespeare" } },
+        { id: "b", label: { en: "Charles Dickens", hi: "चार्ल्स डिकेंस", es: "Charles Dickens" } },
+        { id: "c", label: { en: "Jane Austen", hi: "जेन ऑस्टेन", es: "Jane Austen" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "William Shakespeare wrote this famous tragedy in the late 16th century.",
+        hi: "विलियम शेक्सपियर ने यह प्रसिद्ध त्रासदी 16वीं सदी के अंत में लिखी थी।",
+        es: "William Shakespeare escribió esta famosa tragedia a finales del siglo XVI."
+      }
+    },
+    {
+      id: "rq-5",
+      difficulty: "hard",
+      prompt: {
+        en: "What is the chemical symbol for gold?",
+        hi: "सोने का रासायनिक प्रतीक क्या है?",
+        es: "¿Cuál es el símbolo químico del oro?"
+      },
+      options: [
+        { id: "a", label: { en: "Au", hi: "Au", es: "Au" } },
+        { id: "b", label: { en: "Ag", hi: "Ag", es: "Ag" } },
+        { id: "c", label: { en: "Go", hi: "Go", es: "Go" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "The symbol Au comes from the Latin word for gold, 'aurum'.",
+        hi: "Au प्रतीक सोने के लिए लैटिन शब्द 'ऑरम' से आया है।",
+        es: "El símbolo Au proviene de la palabra latina para oro, 'aurum'."
+      }
+    },
+    {
+      id: "rq-6",
+      difficulty: "easy",
+      prompt: {
+        en: "Which is the largest ocean on Earth?",
+        hi: "पृथ्वी पर सबसे बड़ा महासागर कौन सा है?",
+        es: "¿Cuál es el océano más grande de la Tierra?"
+      },
+      options: [
+        { id: "a", label: { en: "Atlantic", hi: "अटलांटिक", es: "Atlántico" } },
+        { id: "b", label: { en: "Indian", hi: "हिंद महासागर", es: "Índico" } },
+        { id: "c", label: { en: "Pacific", hi: "प्रशांत", es: "Pacífico" } }
+      ],
+      correctOptionId: "c",
+      explainer: {
+        en: "The Pacific Ocean is the largest and deepest ocean on Earth.",
+        hi: "प्रशांत महासागर पृथ्वी पर सबसे बड़ा और गहरा महासागर है।",
+        es: "El Océano Pacífico es el océano más grande y profundo de la Tierra."
+      }
+    },
+    {
+      id: "rq-7",
+      difficulty: "medium",
+      prompt: {
+        en: "What gas do plants absorb from the atmosphere?",
+        hi: "पौधे वायुमंडल से कौन सी गैस अवशोषित करते हैं?",
+        es: "¿Qué gas absorben las plantas de la atmósfera?"
+      },
+      options: [
+        { id: "a", label: { en: "Oxygen", hi: "ऑक्सीजन", es: "Oxígeno" } },
+        { id: "b", label: { en: "Carbon Dioxide", hi: "कार्बन डाइऑक्साइड", es: "Dióxido de carbono" } },
+        { id: "c", label: { en: "Nitrogen", hi: "नाइट्रोजन", es: "Nitrógeno" } }
+      ],
+      correctOptionId: "b",
+      explainer: {
+        en: "Plants absorb carbon dioxide during photosynthesis to produce energy.",
+        hi: "पौधे प्रकाश संश्लेषण के दौरान ऊर्जा उत्पन्न करने के लिए कार्बन डाइऑक्साइड अवशोषित करते हैं।",
+        es: "Las plantas absorben dióxido de carbono durante la fotosíntesis para producir energía."
+      }
+    },
+    {
+      id: "rq-8",
+      difficulty: "hard",
+      prompt: {
+        en: "What is the square root of 144?",
+        hi: "144 का वर्गमूल क्या है?",
+        es: "¿Cuál es la raíz cuadrada de 144?"
+      },
+      options: [
+        { id: "a", label: { en: "12", hi: "12", es: "12" } },
+        { id: "b", label: { en: "14", hi: "14", es: "14" } },
+        { id: "c", label: { en: "16", hi: "16", es: "16" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "12 × 12 = 144, so the square root of 144 is 12.",
+        hi: "12 × 12 = 144, इसलिए 144 का वर्गमूल 12 है।",
+        es: "12 × 12 = 144, por lo que la raíz cuadrada de 144 es 12."
+      }
+    },
+    {
+      id: "rq-9",
+      difficulty: "easy",
+      prompt: {
+        en: "Which continent is the Sahara Desert located in?",
+        hi: "सहारा रेगिस्तान किस महाद्वीप में स्थित है?",
+        es: "¿En qué continente se encuentra el desierto del Sahara?"
+      },
+      options: [
+        { id: "a", label: { en: "Africa", hi: "अफ्रीका", es: "África" } },
+        { id: "b", label: { en: "Asia", hi: "एशिया", es: "Asia" } },
+        { id: "c", label: { en: "Australia", hi: "ऑस्ट्रेलिया", es: "Australia" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "The Sahara Desert is the largest hot desert in the world, located in Africa.",
+        hi: "सहारा रेगिस्तान दुनिया का सबसे बड़ा गर्म रेगिस्तान है, जो अफ्रीका में स्थित है।",
+        es: "El desierto del Sahara es el desierto caliente más grande del mundo, ubicado en África."
+      }
+    },
+    {
+      id: "rq-10",
+      difficulty: "medium",
+      prompt: {
+        en: "Who discovered gravity when an apple fell on his head?",
+        hi: "सेब सिर पर गिरने पर गुरुत्वाकर्षण की खोज किसने की?",
+        es: "¿Quién descubrió la gravedad cuando una manzana cayó sobre su cabeza?"
+      },
+      options: [
+        { id: "a", label: { en: "Isaac Newton", hi: "आइजैक न्यूटन", es: "Isaac Newton" } },
+        { id: "b", label: { en: "Albert Einstein", hi: "अल्बर्ट आइंस्टीन", es: "Albert Einstein" } },
+        { id: "c", label: { en: "Galileo Galilei", hi: "गैलीलियो गैलीली", es: "Galileo Galilei" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "Isaac Newton formulated the laws of gravity and motion in the 17th century.",
+        hi: "आइजैक न्यूटन ने 17वीं सदी में गुरुत्वाकर्षण और गति के नियम तैयार किए।",
+        es: "Isaac Newton formuló las leyes de la gravedad y el movimiento en el siglo XVII."
+      }
+    },
+    {
+      id: "rq-11",
+      difficulty: "hard",
+      prompt: {
+        en: "Which is the longest river in the world?",
+        hi: "दुनिया की सबसे लंबी नदी कौन सी है?",
+        es: "¿Cuál es el río más largo del mundo?"
+      },
+      options: [
+        { id: "a", label: { en: "Nile", hi: "नील", es: "Nilo" } },
+        { id: "b", label: { en: "Amazon", hi: "अमेज़न", es: "Amazonas" } },
+        { id: "c", label: { en: "Yangtze", hi: "यांग्त्ज़ी", es: "Yangtsé" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "The Nile River is approximately 4,135 miles (6,650 km) long.",
+        hi: "नील नदी लगभग 4,135 मील (6,650 किमी) लंबी है।",
+        es: "El río Nilo tiene aproximadamente 4,135 millas (6,650 km) de largo."
+      }
+    },
+    {
+      id: "rq-12",
+      difficulty: "easy",
+      prompt: {
+        en: "What is the boiling point of water at sea level?",
+        hi: "समुद्र तल पर पानी का क्वथनांक क्या है?",
+        es: "¿Cuál es el punto de ebullición del agua a nivel del mar?"
+      },
+      options: [
+        { id: "a", label: { en: "100°C", hi: "100°C", es: "100°C" } },
+        { id: "b", label: { en: "90°C", hi: "90°C", es: "90°C" } },
+        { id: "c", label: { en: "80°C", hi: "80°C", es: "80°C" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "Water boils at 100°C (212°F) at standard atmospheric pressure.",
+        hi: "मानक वायुमंडलीय दबाव पर पानी 100°C (212°F) पर उबलता है।",
+        es: "El agua hierve a 100°C (212°F) a presión atmosférica estándar."
+      }
+    },
+    {
+      id: "rq-13",
+      difficulty: "medium",
+      prompt: {
+        en: "Which language is primarily spoken in Brazil?",
+        hi: "ब्राजील में मुख्य रूप से कौन सी भाषा बोली जाती है?",
+        es: "¿Qué idioma se habla principalmente en Brasil?"
+      },
+      options: [
+        { id: "a", label: { en: "Spanish", hi: "स्पेनिश", es: "Español" } },
+        { id: "b", label: { en: "Portuguese", hi: "पुर्तगाली", es: "Portugués" } },
+        { id: "c", label: { en: "French", hi: "फ्रेंच", es: "Francés" } }
+      ],
+      correctOptionId: "b",
+      explainer: {
+        en: "Brazil is the only Portuguese-speaking country in South America.",
+        hi: "ब्राजील दक्षिण अमेरिका का एकमात्र पुर्तगाली भाषी देश है।",
+        es: "Brasil es el único país de habla portuguesa en América del Sur."
+      }
+    },
+    {
+      id: "rq-14",
+      difficulty: "hard",
+      prompt: {
+        en: "Who is known as the Father of Computers?",
+        hi: "कंप्यूटर के जनक के रूप में किसे जाना जाता है?",
+        es: "¿Quién es conocido como el Padre de las Computadoras?"
+      },
+      options: [
+        { id: "a", label: { en: "Charles Babbage", hi: "चार्ल्स बैबेज", es: "Charles Babbage" } },
+        { id: "b", label: { en: "Alan Turing", hi: "एलन ट्यूरिंग", es: "Alan Turing" } },
+        { id: "c", label: { en: "Bill Gates", hi: "बिल गेट्स", es: "Bill Gates" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "Charles Babbage designed the first mechanical computer, the Analytical Engine.",
+        hi: "चार्ल्स बैबेज ने पहला मैकेनिकल कंप्यूटर, एनालिटिकल इंजन डिजाइन किया था।",
+        es: "Charles Babbage diseñó la primera computadora mecánica, la Máquina Analítica."
+      }
+    },
+    {
+      id: "rq-15",
+      difficulty: "medium",
+      prompt: {
+        en: "Who painted the Mona Lisa?",
+        hi: "मोना लिसा की पेंटिंग किसने बनाई?",
+        es: "¿Quién pintó la Mona Lisa?"
+      },
+      options: [
+        { id: "a", label: { en: "Leonardo da Vinci", hi: "लियोनार्डो दा विंची", es: "Leonardo da Vinci" } },
+        { id: "b", label: { en: "Pablo Picasso", hi: "पाब्लो पिकासो", es: "Pablo Picasso" } },
+        { id: "c", label: { en: "Vincent van Gogh", hi: "विंसेंट वैन गॉग", es: "Vincent van Gogh" } }
+      ],
+      correctOptionId: "a",
+      explainer: {
+        en: "Leonardo da Vinci painted the Mona Lisa in the early 16th century.",
+        hi: "लियोनार्डो दा विंची ने मोना लिसा की पेंटिंग 16वीं सदी की शुरुआत में बनाई थी।",
+        es: "Leonardo da Vinci pintó la Mona Lisa a principios del siglo XVI."
+      }
+    }
+  ], []);
+
+  // Generate random quiz questions
+  const generateRandomQuiz = useCallback(() => {
+    setIsGeneratingQuiz(true);
+    try {
+      // Shuffle and select 10-15 questions
+      const shuffled = [...questionPool].sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, Math.floor(Math.random() * 6) + 10); // 10-15 questions
+      setRandomQuizQuestions(selected);
+    } catch (error) {
+      console.error("Failed to generate quiz:", error);
+      toast.error(t({ en: "Failed to generate quiz", hi: "क्विज़ जेनरेट करने में विफल", es: "Error al generar el cuestionario" }, language));
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  }, [questionPool, language]);
+
+  // Handle answer selection for random quiz
+  function handleRandomAnswer(qId: string, optionId: string) {
+    setAnswers((prev) => ({ ...prev, [qId]: optionId }));
+  }
+
+  // Evaluate random quiz
+  function evaluateRandomQuiz() {
+    const total = randomQuizQuestions.length;
+    let correct = 0;
+    randomQuizQuestions.forEach((q) => {
+      if (answers[q.id] === q.correctOptionId) correct += 1;
+    });
+    const percent = Math.round((correct / total) * 100);
+
+    // Update chapter state
+    const pass = percent >= activeQuiz.passThreshold;
+    setChapterStates((prev) => {
+      const next = prev.map((s) => ({ ...s }));
+      const s = next[activeChapterIdx];
+      s.scorePercent = percent;
+      if (pass) {
+        s.completed = true;
+        // Unlock next chapter
+        if (activeChapterIdx + 1 < next.length) {
+          next[activeChapterIdx + 1].unlocked = true;
+        }
+      }
+      return next;
+    });
+
+    return { percent, pass };
+  }
+
+  // Submit random quiz
+  async function onSubmitRandomQuiz() {
+    setIsSubmitting(true);
+    try {
+      const { percent, pass } = evaluateRandomQuiz();
+      if (pass) {
+        toast.success(
+          t(
+            {
+              en: `Great! You passed with ${percent}%. Advancing to the next mission...`,
+              hi: `शानदार! आपने ${percent}% के साथ पास किया। अगला मिशन शुरू...`,
+              es: `¡Genial! Aprobaste con ${percent}%. Avanzando a la siguiente misión...`,
+            },
+            language
+          )
+        );
+        setCurrentTab("rewards");
+      } else {
+        toast.message(
+          t(
+            {
+              en: `Score: ${percent}%. Keep trying!`,
+              hi: `स्कोर: ${percent}%। प्रयास जारी रखें!`,
+              es: `Puntaje: ${percent}%. ¡Sigue intentando!`,
+            },
+            language
+          )
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // Handle continue button click
+  const handleContinue = () => {
+    const nextIdx = activeChapterIdx + 1;
+    if (nextIdx < activeModule.chapters.length) {
+      setActiveChapterIdx(nextIdx);
+      setCurrentTab("learn");
+    } else {
+      // If it's the last chapter, navigate to a completion page
+      router.push("/learning-complete");
+    }
+  };
 
   function handleAnswer(qId: string, optionId: string) {
     setAnswers((prev) => ({ ...prev, [qId]: optionId }));
@@ -555,6 +959,13 @@ export default function LearningModules({
       }))
     );
   }
+
+  // Generate quiz when quiz tab is activated
+  useEffect(() => {
+    if (currentTab === "quiz" && randomQuizQuestions.length === 0) {
+      generateRandomQuiz();
+    }
+  }, [currentTab, randomQuizQuestions.length, generateRandomQuiz]);
 
   return (
     <section
@@ -715,7 +1126,7 @@ export default function LearningModules({
           onValueChange={(v) => setCurrentTab(v as typeof currentTab)}
           className="w-full"
         >
-          <TabsList className="grid grid-cols-3 w-full bg-secondary">
+                   <TabsList className="grid grid-cols-3 w-full bg-secondary">
             <TabsTrigger value="learn" className="data-[state=active]:bg-card">
               <MonitorPlay className="size-4 mr-2" />
               {t({ en: "Learn", hi: "सीखें", es: "Aprender" }, language)}
@@ -813,106 +1224,102 @@ export default function LearningModules({
             <Card className="bg-card border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base sm:text-lg">
-                  {t({ en: "Chapter Quiz", hi: "अध्याय क्विज़", es: "Cuestionario del capítulo" }, language)}
+                  {t({ en: "Random Quiz", hi: "रैंडम क्विज़", es: "Cuestionario aleatorio" }, language)}
                 </CardTitle>
                 <CardDescription className="text-sm">
                   {t(
                     {
-                      en: "Answer the questions below. Passing unlocks the next mission.",
-                      hi: "नीचे दिए प्रश्नों का उत्तर दें। पास होने पर अगला मिशन अनलॉक होगा।",
-                      es: "Responde las preguntas abajo. Al aprobar, desbloqueas la siguiente misión.",
+                      en: "Answer the randomly selected questions below. Each quiz is unique and in your language.",
+                      hi: "नीचे दिए गए यादृच्छिक प्रश्नों का उत्तर दें। हर क्विज़ अनूठा है और आपकी भाषा में है।",
+                      es: "Responde las preguntas seleccionadas aleatoriamente a continuación. Cada cuestionario es único y en tu idioma.",
                     },
                     language
                   )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  {filteredQuestions.map((q, idx) => {
-                    const selected = answers[q.id];
-                    const isCorrect = selected && selected === q.correctOptionId;
-                    const isAnswered = Boolean(selected);
-                    return (
-                      <div
-                        key={q.id}
-                        className={cn(
-                          "p-3 rounded-[calc(var(--radius)-8px)] border bg-secondary",
-                          isAnswered && (isCorrect ? "ring-1 ring-[--color-success]" : "ring-1 ring-destructive/70")
-                        )}
-                      >
-                        <div className="flex items-start gap-2">
-                          <Badge variant="secondary" className="rounded-full shrink-0">
-                            {idx + 1}
-                          </Badge>
-                          <div className="min-w-0 w-full">
-                            <p className="text-sm font-medium break-words">
-                              {t(q.prompt, language)}
-                            </p>
-                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                              {q.options.map((opt) => {
-                                const active = selected === opt.id;
-                                const correct = q.correctOptionId === opt.id && isAnswered;
-                                return (
-                                  <button
-                                    key={opt.id}
-                                    onClick={() => handleAnswer(q.id, opt.id)}
-                                    className={cn(
-                                      "text-left text-sm p-2 rounded-md border transition-colors",
-                                      "bg-card hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring",
-                                      active && "bg-accent",
-                                      correct && "border-[--color-success]"
-                                    )}
-                                    aria-pressed={active}
-                                  >
-                                    <span className="truncate block">{t(opt.label, language)}</span>
-                                  </button>
-                                );
-                              })}
+                {isGeneratingQuiz ? (
+                  <div className="text-center py-8">
+                    <p>{t({ en: "Generating your quiz...", hi: "आपका क्विज़ जेनरेट हो रहा है...", es: "Generando tu cuestionario..." }, language)}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {randomQuizQuestions.map((q, idx) => {
+                      const selectedAnswer = answers[q.id];
+                      const isAnswered = typeof selectedAnswer !== "undefined";
+                      const isCorrect = isAnswered && selectedAnswer === q.correctOptionId;
+                      
+                      return (
+                        <div
+                          key={q.id}
+                          className={cn(
+                            "p-3 rounded-[calc(var(--radius)-8px)] border bg-secondary",
+                            isAnswered && (isCorrect ? "ring-1 ring-[--color-success]" : "ring-1 ring-destructive/70")
+                          )}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Badge variant="secondary" className="rounded-full shrink-0">
+                              {idx + 1}
+                            </Badge>
+                            <div className="min-w-0 w-full">
+                              <p className="text-sm font-medium break-words">{t(q.prompt, language)}</p>
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {q.options.map((opt: any) => {
+                                  const active = selectedAnswer === opt.id;
+                                  return (
+                                    <button
+                                      key={opt.id}
+                                      onClick={() => handleRandomAnswer(q.id, opt.id)}
+                                      className={cn(
+                                        "text-left text-sm p-2 rounded-md border transition-colors",
+                                        "bg-card hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring",
+                                        active && "bg-accent"
+                                      )}
+                                      aria-pressed={active}
+                                    >
+                                      <span className="truncate block">{t(opt.label, language)}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {isAnswered && (
+                                <p
+                                  className={cn(
+                                    "mt-2 text-xs",
+                                    isCorrect ? "text-[--color-success]" : "text-destructive"
+                                  )}
+                                >
+                                  {isCorrect
+                                    ? t({ en: "Correct!", hi: "सही!", es: "¡Correcto!" }, language)
+                                    : <>
+                                        {t({ en: "Not quite.", hi: "ठीक नहीं।", es: "No exactamente." }, language)}
+                                        {" "}
+                                        {t({ en: "Correct answer:", hi: "सही उत्तर:", es: "Respuesta correcta:" }, language)} {t(q.options.find((o: any) => o.id === q.correctOptionId).label, language)}
+                                      </>
+                                  }
+                                </p>
+                              )}
                             </div>
-                            {isAnswered && (
-                              <p
-                                className={cn(
-                                  "mt-2 text-xs",
-                                  isCorrect ? "text-[--color-success]" : "text-destructive"
-                                )}
-                              >
-                                {isCorrect
-                                  ? t(
-                                      { en: "Correct!", hi: "सही!", es: "¡Correcto!" },
-                                      language
-                                    )
-                                  : t(
-                                      { en: "Not quite. Tip:", hi: "ठीक नहीं। संकेत:", es: "No exactamente. Pista:" },
-                                      language
-                                    )}{" "}
-                                {t(q.explainer, language)}
-                              </p>
-                            )}
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {t({ en: "Auto-advance on pass", hi: "पास होने पर स्वतः आगे", es: "Avance automático al aprobar" }, language)}
-                    </span>
+                      );
+                    })}
+                    
+                    <div className="flex gap-2 pt-4">
+                      <Button 
+                        onClick={onSubmitRandomQuiz} 
+                        disabled={isSubmitting || Object.keys(answers).length < randomQuizQuestions.length}
+                        className="gap-2"
+                      >
+                        <BookOpenCheck className="size-4" />
+                        {t({ en: "Submit Quiz", hi: "क्विज़ सबमिट करें", es: "Enviar cuestionario" }, language)}
+                      </Button>
+                      <Button variant="secondary" onClick={generateRandomQuiz}>
+                        {t({ en: "New Questions", hi: "नए प्रश्न", es: "Nuevas preguntas" }, language)}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" onClick={() => setCurrentTab("learn")}>
-                      {t({ en: "Back to Learn", hi: "सीखने पर वापस", es: "Volver a Aprender" }, language)}
-                    </Button>
-                    <Button onClick={onSubmitQuiz} disabled={isSubmitting} className="gap-2">
-                      <BookOpenCheck className="size-4" />
-                      {isSubmitting
-                        ? t({ en: "Checking...", hi: "जाँच हो रही...", es: "Comprobando..." }, language)
-                        : t({ en: "Submit", hi: "सबमिट", es: "Enviar" }, language)}
-                    </Button>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -968,19 +1375,16 @@ export default function LearningModules({
                     <Button
                       variant="secondary"
                       disabled={!chapterStates[activeChapterIdx]?.completed}
-                      onClick={() => {
-                        const nextIdx = activeChapterIdx + 1;
-                        if (nextIdx < activeModule.chapters.length) {
-                          setActiveChapterIdx(nextIdx);
-                          setCurrentTab("learn");
-                        }
-                      }}
+                      onClick={handleContinue}
+                      className="gap-2"
                     >
                       {t({ en: "Continue", hi: "जारी रखें", es: "Continuar" }, language)}
+                      <ArrowRight className="size-4" />
                     </Button>
                     <Button variant="secondary" onClick={() => setCurrentTab("quiz")}>
                       {t({ en: "Retake Quiz", hi: "क्विज़ दोहराएँ", es: "Repetir cuestionario" }, language)}
                     </Button>
+
                   </div>
                 </div>
               </CardContent>

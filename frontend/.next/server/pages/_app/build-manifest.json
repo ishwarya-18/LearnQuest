@@ -1,0 +1,18 @@
+{
+  "devFiles": [],
+  "ampDevFiles": [],
+  "polyfillFiles": [],
+  "lowPriorityFiles": [],
+  "rootMainFiles": [],
+  "pages": {
+    "/_app": [
+      "static/chunks/[root-of-the-server]__d069db63._.js",
+      "static/chunks/0a43a_react-dom_1981b395._.js",
+      "static/chunks/0a43a_363996e3._.js",
+      "static/chunks/[root-of-the-server]__54cbbe36._.js",
+      "static/chunks/LearnQuest_frontend_pages__app_5771e187._.js",
+      "static/chunks/LearnQuest_frontend_pages__app_7802d260._.js"
+    ]
+  },
+  "ampFirstPages": []
+}

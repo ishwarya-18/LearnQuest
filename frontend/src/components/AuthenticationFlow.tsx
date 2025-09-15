@@ -73,8 +73,8 @@ const avatarOptions: { id: string; url: string; alt: string }[] = [
   },
   {
     id: "av5",
-    url: "https://images.unsplash.com/photo-1520975673310-2980b809891e?q=80&w=300&auto=format&fit=crop",
-    alt: "Girl portrait",
+    url: "https://images.unsplash.com/photo-1463453091185-61582044d556?q=80&w=300&auto=format&fit=crop",
+    alt: "Man in blue jacket",
   },
   {
     id: "av6",
@@ -145,14 +145,14 @@ export default function AuthenticationFlow({
   }, [authMode, method])
 
   function validateContact(): boolean {
-    if (method === "phone") {
-      const cleaned = phone.replace(/\D/g, "")
-      if (cleaned.length < 10) {
-        setError("Please enter a valid 10-digit phone number.")
-        return false
-      }
-      return true
-    } else {
+   if (method === "phone") {
+  const cleaned = phone.replace(/\D/g, "")
+  if (cleaned.length !== 10) {
+    setError("Please enter a valid 10-digit phone number.")
+    return false
+  }
+  return true
+} else {
       const isValid = /^\S+@\S+\.\S+$/.test(email)
       if (!isValid) {
         setError("Please enter a valid email address.")
@@ -729,13 +729,17 @@ export default function AuthenticationFlow({
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="fullname">Full name</Label>
-                <Input
-                  id="fullname"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-12 text-base"
-                />
+               <Input
+  id="fullname"
+  placeholder="Enter your name"
+  value={name}
+  onChange={(e) => {
+    // Allow only letters and spaces
+    const value = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+    setName(value);
+  }}
+  className="h-12 text-base"
+/>
               </div>
 
               {role === "student" && (
@@ -749,11 +753,16 @@ export default function AuthenticationFlow({
                       <SelectValue placeholder="Select your class" />
                     </SelectTrigger>
                     <SelectContent>
-                      {grades.map((g) => (
-                        <SelectItem key={g.value} value={g.value}>
-                          {g.label}
-                        </SelectItem>
-                      ))}
+                      {grades
+  .filter((g) => {
+    const num = parseInt(g.value.replace("grade-", ""));
+    return num >= 6 && num <= 12;
+  })
+  .map((g) => (
+    <SelectItem key={g.value} value={g.value}>
+      {g.label}
+    </SelectItem>
+))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -780,36 +789,36 @@ export default function AuthenticationFlow({
 
               <div className="grid gap-2">
                 <Label>Choose an avatar</Label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                  {avatarOptions.map((a) => {
-                    const active = avatar === a.url
-                    return (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => setAvatar(a.url)}
-                        aria-pressed={active}
-                        aria-label={`Select avatar: ${a.alt}`}
-                        className={cn(
-                          "relative aspect-square overflow-hidden rounded-xl border transition",
-                          active
-                            ? "border-primary ring-2 ring-primary/20"
-                            : "border-border hover:border-foreground/40"
-                        )}
-                      >
-                        <img
-                          src={a.url}
-                          alt={a.alt}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                        {active && (
-                          <div className="absolute inset-0 ring-inset ring-2 ring-primary/30 pointer-events-none" />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 p-1 overflow-visible">
+  {avatarOptions.map((a) => {
+    const active = avatar === a.url
+    return (
+      <button
+        key={a.id}
+        type="button"
+        onClick={() => setAvatar(a.url)}
+        aria-pressed={active}
+        aria-label={`Select avatar: ${a.alt}`}
+        className={cn(
+          "relative aspect-square min-h-[56px] overflow-hidden rounded-xl border transition",
+          active
+            ? "border-primary ring-2 ring-primary/20"
+            : "border-border hover:border-foreground/40"
+        )}
+      >
+        <img
+          src={a.url}
+          alt={a.alt}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+        {active && (
+          <div className="absolute inset-0 ring-inset ring-2 ring-primary/30 pointer-events-none" />
+        )}
+      </button>
+    )
+  })}
+</div>
                 <p className="text-xs text-muted-foreground">
                   Avatars add fun to learning. You can change this anytime.
                 </p>

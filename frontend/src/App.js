@@ -27,6 +27,8 @@ function App() {
       <nav>
         {pages.map((p) => (
           <button key={p.key} onClick={() => setPage(p.key)}>
+            <h1>Hello World!</h1>
+
             {p.label}
           </button>
         ))}
