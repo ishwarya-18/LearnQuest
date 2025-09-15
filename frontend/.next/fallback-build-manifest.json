@@ -1,0 +1,29 @@
+{
+  "pages": {
+    "/_app": [
+      "static/chunks/[root-of-the-server]__d069db63._.js",
+      "static/chunks/0a43a_react-dom_1981b395._.js",
+      "static/chunks/0a43a_363996e3._.js",
+      "static/chunks/[root-of-the-server]__54cbbe36._.js",
+      "static/chunks/LearnQuest_frontend_pages__app_5771e187._.js",
+      "static/chunks/LearnQuest_frontend_pages__app_7802d260._.js"
+    ],
+    "/_error": [
+      "static/chunks/[root-of-the-server]__291b390d._.js",
+      "static/chunks/0a43a_react-dom_1981b395._.js",
+      "static/chunks/0a43a_363996e3._.js",
+      "static/chunks/[root-of-the-server]__858af58a._.js",
+      "static/chunks/LearnQuest_frontend_pages__error_5771e187._.js",
+      "static/chunks/LearnQuest_frontend_pages__error_1fbd8811._.js"
+    ]
+  },
+  "devFiles": [],
+  "ampDevFiles": [],
+  "polyfillFiles": [],
+  "lowPriorityFiles": [
+    "static/development/_ssgManifest.js",
+    "static/development/_buildManifest.js"
+  ],
+  "rootMainFiles": [],
+  "ampFirstPages": []
+}

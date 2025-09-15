@@ -1,0 +1,8 @@
+__turbopack_load_page_chunks__("/_error", [
+  "static/chunks/[root-of-the-server]__291b390d._.js",
+  "static/chunks/0a43a_react-dom_1981b395._.js",
+  "static/chunks/0a43a_363996e3._.js",
+  "static/chunks/[root-of-the-server]__858af58a._.js",
+  "static/chunks/LearnQuest_frontend_pages__error_5771e187._.js",
+  "static/chunks/LearnQuest_frontend_pages__error_1fbd8811._.js"
+])

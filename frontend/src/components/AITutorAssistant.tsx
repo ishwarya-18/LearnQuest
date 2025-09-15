@@ -105,6 +105,9 @@ const LANG_OPTIONS = [
 ]
 
 function generateId(prefix = "msg") {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `${prefix}_${crypto.randomUUID()}`
+  }
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`
 }
 
@@ -286,13 +289,20 @@ export default function AITutorAssistant({
     recognizer.continuous = false
     recognizer.interimResults = true
 
-    recognizer.onresult = (event: any) => {
-      let transcript = ""
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript
-      }
-      setInput(transcript.trim())
+   recognizer.onresult = (event: any) => {
+  let interim = "";
+  let final = "";
+  for (let i = event.resultIndex; i < event.results.length; i++) {
+    const transcript = event.results[i][0].transcript;
+    if (event.results[i].isFinal) {
+      final += transcript;
+    } else {
+      interim += transcript;
     }
+  }
+  // Append to existing input for continuous dictation
+  setInput((prev) => (prev + " " + final + interim).trim());
+}
     recognizer.onerror = () => {
       setListening(false)
       toast.error("Voice input error")
@@ -360,29 +370,43 @@ export default function AITutorAssistant({
     async (text?: string) => {
       const content = (text ?? input).trim()
       if (!content) return
-      if (!activeConversation) {
-        startNewConversation(language)
-      }
-      const convId = activeConversation?.id ?? conversations[0]?.id
-      if (!convId) return
+      let convId = activeConversation?.id ?? conversations[0]?.id;
+if (!convId) {
+  // Start a new conversation and get its ID
+  const newConv: Conversation = {
+    id: generateId("conv"),
+    title: `Session with ${studentName}`,
+    lastUpdated: now(),
+    language,
+    messages: [],
+  };
+  setConversations((prev) => [newConv, ...prev]);
+  setActiveId(newConv.id);
+  convId = newConv.id;
+}
 
-      const userMsg: Message = {
-        id: generateId("msg"),
-        role: "user",
-        content,
-        timestamp: now(),
-        language,
-      }
+const userMsg: Message = {
+  id: generateId("msg"),
+  role: "user",
+  content,
+  timestamp: now(),
+  language,
+};
 
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId ? { ...c, messages: [...c.messages, userMsg], lastUpdated: now() } : c
-        )
-      )
-      onSendMessage?.(userMsg, (conversations.find((c) => c.id === convId) as Conversation) ?? activeConversation!)
+// Add the user message immediately
+setConversations((prev) =>
+  prev.map((c) =>
+    c.id === convId ? { ...c, messages: [...c.messages, userMsg], lastUpdated: now() } : c
+  )
+);
+onSendMessage?.(userMsg, (conversations.find((c) => c.id === convId) as Conversation) ?? activeConversation!);
 
-      setInput("")
-      setTyping(true)
+setInput("");
+setTyping(true);
+
+// ...rest of code...
+
+    
 
       const proceed = () => {
         const result = mockTutorResponse(content, { progress, language })
@@ -732,7 +756,7 @@ function ChatBubble({
   const isUser = role === "user"
   const bubbleClasses = cn(
     "max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 shadow-sm break-words",
-    isUser ? "bg-primary text-primary-foreground" : role === "system" ? "bg-muted text-muted-foreground" : "bg-card text-foreground"
+   isUser ? "bg-secondary text-foreground" : role === "system" ? "bg-muted text-muted-foreground" : "bg-card text-foreground"
   )
   const rowClasses = cn("w-full flex", isUser ? "justify-end" : "justify-start")
 
@@ -740,7 +764,7 @@ function ChatBubble({
     <div className={rowClasses}>
       <div className="flex flex-col gap-1">
         <div className={bubbleClasses} role="article" aria-live="polite">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+        <p className="text-sm leading-relaxed whitespace-pre-line">{content}</p>
         </div>
         <span className="text-[11px] text-muted-foreground pl-2">
           {new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
