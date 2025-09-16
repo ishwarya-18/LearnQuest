@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { BookOpenCheck, GraduationCap, MonitorPlay, PackageOpen, SquareArrowDownRight, Captions, Clapperboard, Library, ArrowRight } from "lucide-react";
+import { BookOpenCheck, GraduationCap, MonitorPlay, PackageOpen, SquareArrowDownRight, Captions, Clapperboard, Library, ArrowRight, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -21,6 +21,102 @@ import { Switch } from "@/components/ui/switch";
 import { useRouter } from "next/navigation";
 
 type LanguageCode = "en" | "hi" | "es";
+
+interface Subject {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface GradeSubjects {
+  grade: number;
+  subjects: Subject[];
+}
+
+// CBSE curriculum subjects for grades 6-12 (removed language subjects)
+const CBSE_SUBJECTS_BY_GRADE: GradeSubjects[] = [
+  {
+    grade: 6,
+    subjects: [
+      { id: "math-6", name: "Mathematics", code: "MATH" },
+      { id: "science-6", name: "Science", code: "SCI" },
+      { id: "social-6", name: "Social Science", code: "SST" },
+      { id: "computer-6", name: "Computer Science", code: "CS" },
+      { id: "art-6", name: "Art Education", code: "ART" },
+      { id: "pe-6", name: "Physical Education", code: "PE" },
+    ]
+  },
+  {
+    grade: 7,
+    subjects: [
+      { id: "math-7", name: "Mathematics", code: "MATH" },
+      { id: "science-7", name: "Science", code: "SCI" },
+      { id: "social-7", name: "Social Science", code: "SST" },
+      { id: "computer-7", name: "Computer Science", code: "CS" },
+      { id: "art-7", name: "Art Education", code: "ART" },
+      { id: "pe-7", name: "Physical Education", code: "PE" },
+    ]
+  },
+  {
+    grade: 8,
+    subjects: [
+      { id: "math-8", name: "Mathematics", code: "MATH" },
+      { id: "science-8", name: "Science", code: "SCI" },
+      { id: "social-8", name: "Social Science", code: "SST" },
+      { id: "computer-8", name: "Computer Science", code: "CS" },
+      { id: "art-8", name: "Art Education", code: "ART" },
+      { id: "pe-8", name: "Physical Education", code: "PE" },
+    ]
+  },
+  {
+    grade: 9,
+    subjects: [
+      { id: "math-9", name: "Mathematics", code: "MATH" },
+      { id: "science-9", name: "Science", code: "SCI" },
+      { id: "social-9", name: "Social Science", code: "SST" },
+      { id: "it-9", name: "Information Technology", code: "IT" },
+      { id: "art-9", name: "Art Education", code: "ART" },
+      { id: "pe-9", name: "Physical Education", code: "PE" },
+    ]
+  },
+  {
+    grade: 10,
+    subjects: [
+      { id: "math-10", name: "Mathematics", code: "MATH" },
+      { id: "science-10", name: "Science", code: "SCI" },
+      { id: "social-10", name: "Social Science", code: "SST" },
+      { id: "it-10", name: "Information Technology", code: "IT" },
+      { id: "art-10", name: "Art Education", code: "ART" },
+      { id: "pe-10", name: "Physical Education", code: "PE" },
+    ]
+  },
+  {
+    grade: 11,
+    subjects: [
+      { id: "math-11", name: "Mathematics", code: "MATH" },
+      { id: "physics-11", name: "Physics", code: "PHY" },
+      { id: "chemistry-11", name: "Chemistry", code: "CHE" },
+      { id: "biology-11", name: "Biology", code: "BIO" },
+      { id: "cs-11", name: "Computer Science", code: "CS" },
+      { id: "accountancy-11", name: "Accountancy", code: "ACC" },
+      { id: "economics-11", name: "Economics", code: "ECO" },
+      { id: "pe-11", name: "Physical Education", code: "PE" },
+    ]
+  },
+  {
+    grade: 12,
+    subjects: [
+      { id: "math-12", name: "Mathematics", code: "MATH" },
+      { id: "physics-12", name: "Physics", code: "PHY" },
+      { id: "chemistry-12", name: "Chemistry", code: "CHE" },
+      { id: "biology-12", name: "Biology", code: "BIO" },
+      { id: "cs-12", name: "Computer Science", code: "CS" },
+      { id: "accountancy-12", name: "Accountancy", code: "ACC" },
+      { id: "economics-12", name: "Economics", code: "ECO" },
+      { id: "pe-12", name: "Physical Education", code: "PE" },
+    ]
+  }
+];
 
 type ChapterContent = {
   id: string;
@@ -55,6 +151,7 @@ export interface LearningModulesProps {
   modules?: Module[];
   initialLanguage?: LanguageCode;
   onProgressChange?: (progressPercent: number) => void;
+  userGrade?: number; // Change from required to optional
 }
 
 type ChapterState = {
@@ -97,7 +194,7 @@ const DEFAULT_MODULES: Module[] = [
               prompt: {
                 en: "You cut a roti into 4 equal parts and eat 1. What fraction did you eat?",
                 hi: "आपने रोटी को 4 बराबर भागों में काटा और 1 खाया। आपने कितनी भिन्न खाई?",
-                es: "Cortas una tortilla en 4 partes iguales y comes 1. ¿Qué fracción comiste?",
+                es: "Cortas una tortilla en 4 partes iguales and comes 1. ¿Qué fracción comiste?",
               },
               options: [
                 {
@@ -157,7 +254,7 @@ const DEFAULT_MODULES: Module[] = [
               explainer: {
                 en: "2/4 simplifies to 1/2 by dividing numerator and denominator by 2.",
                 hi: "अंश और हर को 2 से भाग देकर 2/4 = 1/2।",
-                es: "2/4 se simplifica a 1/2 dividiendo numerador y denominador por 2.",
+                es: "2/4 se simplifica a 1/2 dividiendo numerador and denominador por 2.",
               },
             },
           ],
@@ -243,7 +340,7 @@ const DEFAULT_MODULES: Module[] = [
           description: {
             en: "For comparing and ordering fractions.",
             hi: "भिन्नों की तुलना और क्रम के लिए।",
-            es: "Por comparar y ordenar fracciones.",
+            es: "Por comparar and ordenar fracciones.",
           },
         },
       },
@@ -252,12 +349,12 @@ const DEFAULT_MODULES: Module[] = [
         title: {
           en: "Mission 3: Mix and Match",
           hi: "मिशन 3: मिश्रित भिन्न",
-          es: "Misión 3: Mezcla y Combina",
+          es: "Misión 3: Mezcla and Combina",
         },
         description: {
           en: "Understand mixed numbers and improper fractions.",
-          hi: "मिश्रित और अशुद्ध भिन्नों को समझें।",
-          es: "Comprende números mixtos y fracciones impropias.",
+          hi: "मिश्रित and अशुद्ध भिन्नों को समझें।",
+          es: "Comprende números mixtos and fracciones impropias.",
         },
         thumbUnsplash:
           "https://images.unsplash.com/photo-1512790182412-b19e6d62bc39?q=80&w=1200&auto=format&fit=crop",
@@ -280,8 +377,8 @@ const DEFAULT_MODULES: Module[] = [
               correctOptionId: "a",
               explainer: {
                 en: "7/4 = 1 whole and 3/4.",
-                hi: "7/4 = 1 पूरा और 3/4।",
-                es: "7/4 = 1 entero y 3/4.",
+                hi: "7/4 = 1 पूरा and 3/4।",
+                es: "7/4 = 1 entero and 3/4.",
               },
             },
             {
@@ -342,9 +439,12 @@ export default function LearningModules({
   modules = DEFAULT_MODULES,
   initialLanguage = "en",
   onProgressChange,
+  userGrade, // Now optional
 }: LearningModulesProps) {
   const router = useRouter();
   const [language, setLanguage] = useState<LanguageCode>(initialLanguage);
+  const [actualUserGrade, setActualUserGrade] = useState<number>(userGrade || 6);
+  const [selectedSubject, setSelectedSubject] = useState<string>("math-6");
   const [activeModuleIdx, setActiveModuleIdx] = useState(0);
   const activeModule = modules[activeModuleIdx];
   const [activeChapterIdx, setActiveChapterIdx] = useState(0);
@@ -365,6 +465,10 @@ export default function LearningModules({
   const [randomQuizQuestions, setRandomQuizQuestions] = useState<any[]>([]);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
+  // Find subjects for the current grade
+  const gradeData = CBSE_SUBJECTS_BY_GRADE.find(g => g.grade === actualUserGrade);
+  const subjects = gradeData?.subjects || [];
+
   const activeChapter = activeModule.chapters[activeChapterIdx];
   const activeQuiz = activeChapter.quiz;
 
@@ -381,6 +485,18 @@ export default function LearningModules({
     onProgressChange?.(progressPercent);
   }, [progressPercent, onProgressChange]);
 
+  useEffect(() => {
+    if (subjects.length > 0 && !selectedSubject) {
+      // Set default subject to math for the current grade
+      const mathSubject = subjects.find(s => s.id.includes('math'));
+      if (mathSubject) {
+        setSelectedSubject(mathSubject.id);
+      } else {
+        setSelectedSubject(subjects[0].id);
+      }
+    }
+  }, [subjects, selectedSubject]);
+
   // Load persisted state
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -392,9 +508,11 @@ export default function LearningModules({
           chapterStates: ChapterState[];
           language?: LanguageCode;
           offlineReady?: boolean;
+          selectedSubject?: string;
         };
         setChapterStates(parsed.chapterStates ?? chapterStates);
         if (parsed.language) setLanguage(parsed.language);
+        if (parsed.selectedSubject) setSelectedSubject(parsed.selectedSubject);
         setOfflineReady(Boolean(parsed.offlineReady));
       }
     } catch {
@@ -407,13 +525,13 @@ export default function LearningModules({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = `lq:${activeModule.id}:state`;
-    const payload = JSON.stringify({ chapterStates, language, offlineReady });
+    const payload = JSON.stringify({ chapterStates, language, offlineReady, selectedSubject });
     try {
       localStorage.setItem(key, payload);
     } catch {
       // storage might be unavailable
     }
-  }, [activeModule.id, chapterStates, language, offlineReady]);
+  }, [activeModule.id, chapterStates, language, offlineReady, selectedSubject]);
 
   // Reset when chapter changes
   useEffect(() => {
@@ -437,6 +555,38 @@ export default function LearningModules({
     return;
   }, [chapterStates, activeChapterIdx, activeModule.chapters.length]);
 
+  useEffect(() => {
+    if (!userGrade && typeof window !== "undefined") {
+      const storedGrade = localStorage.getItem('userGrade');
+      if (storedGrade) {
+        setActualUserGrade(parseInt(storedGrade));
+      }
+    }
+  }, [userGrade]);
+
+  // Handle subject change
+  const handleSubjectChange = (subjectId: string) => {
+    setSelectedSubject(subjectId);
+    // Reset module state when subject changes
+    setActiveModuleIdx(0);
+    setActiveChapterIdx(0);
+    setAnswers({});
+    setCurrentTab("learn");
+    
+    // Show notification about subject change
+    const subjectName = subjects.find(s => s.id === subjectId)?.name || "Subject";
+    toast.message(
+      t(
+        {
+          en: `Switched to ${subjectName}`,
+          hi: `${subjectName} में बदल गया`,
+          es: `Cambiado a ${subjectName}`
+        },
+        language
+      )
+    );
+  };
+
   // Question pool for random quizzes
   const questionPool = useMemo(() => [
     {
@@ -455,8 +605,8 @@ export default function LearningModules({
       correctOptionId: "a",
       explainer: {
         en: "Paris is the capital and most populous city of France.",
-        hi: "पेरिस फ्रांस की राजधानी और सबसे अधिक आबादी वाला शहर है।",
-        es: "París es la capital y la ciudad más poblada de Francia."
+        hi: "पेरिस फ्रांस की राजधानी and सबसे अधिक आबादी वाला शहर है।",
+        es: "París es la capital and la ciudad más poblada de Francia."
       }
     },
     {
@@ -476,7 +626,7 @@ export default function LearningModules({
       explainer: {
         en: "Mars appears red due to iron oxide (rust) on its surface.",
         hi: "मंगल अपनी सतह पर आयरन ऑक्साइड (जंग) के कारण लाल दिखाई देता है।",
-        es: "Marte aparece rojo debido al óxido de hierro (óxido) en su superficie."
+        es: "Marte aparece red due to iron oxide (rust) on its surface."
       }
     },
     {
@@ -504,7 +654,7 @@ export default function LearningModules({
       difficulty: "medium",
       prompt: {
         en: "Who wrote 'Romeo and Juliet'?",
-        hi: "'रोमियो और जूलियट' किसने लिखा?",
+        hi: "'रोमियो and जूलियट' किसने लिखा?",
         es: "¿Quién escribió 'Romeo y Julieta'?"
       },
       options: [
@@ -555,8 +705,8 @@ export default function LearningModules({
       correctOptionId: "c",
       explainer: {
         en: "The Pacific Ocean is the largest and deepest ocean on Earth.",
-        hi: "प्रशांत महासागर पृथ्वी पर सबसे बड़ा और गहरा महासागर है।",
-        es: "El Océano Pacífico es el océano más grande y profundo de la Tierra."
+        hi: "प्रशांत महासागर पृथ्वी पर सबसे बड़ा and गहरा महासागर है।",
+        es: "El Océano Pacífico es el océano más grande and profundo de la Tierra."
       }
     },
     {
@@ -635,8 +785,8 @@ export default function LearningModules({
       correctOptionId: "a",
       explainer: {
         en: "Isaac Newton formulated the laws of gravity and motion in the 17th century.",
-        hi: "आइजैक न्यूटन ने 17वीं सदी में गुरुत्वाकर्षण और गति के नियम तैयार किए।",
-        es: "Isaac Newton formuló las leyes de la gravedad y el movimiento en el siglo XVII."
+        hi: "आइजैक न्यूटन ने 17वीं सदी में गुरुत्वाकर्षण and गति के नियम तैयार किए।",
+        es: "Isaac Newton formuló las leyes de la gravedad and el movimiento en el siglo XVII."
       }
     },
     {
@@ -730,12 +880,12 @@ export default function LearningModules({
       options: [
         { id: "a", label: { en: "Leonardo da Vinci", hi: "लियोनार्डो दा विंची", es: "Leonardo da Vinci" } },
         { id: "b", label: { en: "Pablo Picasso", hi: "पाब्लो पिकासो", es: "Pablo Picasso" } },
-        { id: "c", label: { en: "Vincent van Gogh", hi: "विंसेंट वैन गॉग", es: "Vincent van Gogh" } }
+        { id: "c", label: { en: "Vincent van Gogh", hi: "विंसेंट वैन गॉグ", es: "Vincent van Gogh" } }
       ],
       correctOptionId: "a",
       explainer: {
         en: "Leonardo da Vinci painted the Mona Lisa in the early 16th century.",
-        hi: "लियोनार्डो दा विंची ने मोना लिसा की पेंटिंग 16वीं सदी की शुरुआत में बनाई थी।",
+        hi: "लियオनार्डो दा विंची ने मोना लिसा की पेंटिंग 16वीं सदी की शुरुआत में बनाई थी।",
         es: "Leonardo da Vinci pintó la Mona Lisa a principios del siglo XVI."
       }
     }
@@ -791,38 +941,39 @@ export default function LearningModules({
   }
 
   // Submit random quiz
-  async function onSubmitRandomQuiz() {
-    setIsSubmitting(true);
-    try {
-      const { percent, pass } = evaluateRandomQuiz();
-      if (pass) {
-        toast.success(
-          t(
-            {
-              en: `Great! You passed with ${percent}%. Advancing to the next mission...`,
-              hi: `शानदार! आपने ${percent}% के साथ पास किया। अगला मिशन शुरू...`,
-              es: `¡Genial! Aprobaste con ${percent}%. Avanzando a la siguiente misión...`,
-            },
-            language
-          )
-        );
-        setCurrentTab("rewards");
-      } else {
-        toast.message(
-          t(
-            {
-              en: `Score: ${percent}%. Keep trying!`,
-              hi: `स्कोर: ${percent}%। प्रयास जारी रखें!`,
-              es: `Puntaje: ${percent}%. ¡Sigue intentando!`,
-            },
-            language
-          )
-        );
-      }
-    } finally {
-      setIsSubmitting(false);
+  // In the onSubmitRandomQuiz function, fix the toast message:
+async function onSubmitRandomQuiz() {
+  setIsSubmitting(true);
+  try {
+    const { percent, pass } = evaluateRandomQuiz();
+    if (pass) {
+      toast.success(
+        t(
+          {
+            en: `Great! You passed with ${percent}%. Advancing to the next mission...`,
+            hi: `शानदार! आपने ${percent}% के साथ पास किया। अगला मिशन शुरू...`,
+            es: `¡Genial! Aprobaste con ${percent}%. Avanzando a la siguiente misión...`,
+          },
+          language
+        )
+      );
+      setCurrentTab("rewards");
+    } else {
+      toast.message(
+        t(
+          {
+            en: `Score: ${percent}%. Keep trying!`,
+            hi: `स्कोर: ${percent}%। प्रयास जारी रखें!`,
+            es: `Puntaje: ${percent}%. ¡Sigue intentando!`,
+          },
+          language
+        )
+      );
     }
+  } finally {
+    setIsSubmitting(false);
   }
+}
 
   // Handle continue button click
   const handleContinue = () => {
@@ -832,7 +983,7 @@ export default function LearningModules({
       setCurrentTab("learn");
     } else {
       // If it's the last chapter, navigate to a completion page
-      router.push("/learning-complete");
+      router.push(`/learning-complete?module=${activeModule.id}&subject=${selectedSubject}&lang=${language}`);
     }
   };
 
@@ -967,6 +1118,8 @@ export default function LearningModules({
     }
   }, [currentTab, randomQuizQuestions.length, generateRandomQuiz]);
 
+  // ... (previous code remains the same)
+
   return (
     <section
       className={cn(
@@ -987,19 +1140,51 @@ export default function LearningModules({
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Subject Selector - Added clear label */}
             <div className="hidden sm:flex items-center gap-2">
-              <Captions className="size-4 text-muted-foreground" aria-hidden />
-              <Select value={language} onValueChange={(v: LanguageCode) => setLanguage(v)}>
-                <SelectTrigger className="w-[120px] bg-secondary">
-                  <SelectValue placeholder="Language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="hi">हिन्दी</SelectItem>
-                  <SelectItem value="es">Español</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col">
+                <label htmlFor="subject-select" className="text-xs text-muted-foreground mb-1">
+                  {t({ en: "Subject", hi: "विषय", es: "Materia" }, language)}
+                </label>
+                <div className="flex items-center gap-2">
+                  <BookOpen className="size-4 text-muted-foreground" aria-hidden />
+                  <Select value={selectedSubject} onValueChange={handleSubjectChange}>
+                    <SelectTrigger id="subject-select" className="w-[160px] bg-secondary">
+                      <SelectValue placeholder={t({ en: "Select subject", hi: "विषय चुनें", es: "Seleccionar materia" }, language)} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjects.map((subject) => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
+
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="flex flex-col">
+                <label htmlFor="language-select" className="text-xs text-muted-foreground mb-1">
+                  {t({ en: "Language", hi: "भाषा", es: "Idioma" }, language)}
+                </label>
+                <div className="flex items-center gap-2">
+                  <Captions className="size-4 text-muted-foreground" aria-hidden />
+                  <Select value={language} onValueChange={(v: LanguageCode) => setLanguage(v)}>
+                    <SelectTrigger id="language-select" className="w-[120px] bg-secondary">
+                      <SelectValue placeholder={t({ en: "Language", hi: "भाषा", es: "Idioma" }, language)} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="hi">हिन्दी</SelectItem>
+                      <SelectItem value="es">Español</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
 
             <div className="hidden sm:flex items-center gap-2">
               <Switch
@@ -1126,7 +1311,7 @@ export default function LearningModules({
           onValueChange={(v) => setCurrentTab(v as typeof currentTab)}
           className="w-full"
         >
-                   <TabsList className="grid grid-cols-3 w-full bg-secondary">
+          <TabsList className="grid grid-cols-3 w-full bg-secondary">
             <TabsTrigger value="learn" className="data-[state=active]:bg-card">
               <MonitorPlay className="size-4 mr-2" />
               {t({ en: "Learn", hi: "सीखें", es: "Aprender" }, language)}
@@ -1186,7 +1371,7 @@ export default function LearningModules({
                     {t(
                       {
                         en: "Read the story above. When ready, switch to Quiz to test your understanding. Your difficulty adapts as you learn.",
-                        hi: "ऊपर कहानी पढ़ें। तैयार होने पर क्विज़ में जाएँ और समझ की जाँच करें। सीखते समय कठिनाई अनुकूलित होती है।",
+                        hi: "ऊपर कहानी पढ़ें। तैयार होने पर क्विज़ में जाएँ and समझ की जाँच करें। सीखते समय कठिनाई अनुकूलित होती है।",
                         es: "Lee la historia de arriba. Cuando estés listo, cambia a Cuestionario para probar tu comprensión. La dificultad se adapta mientras aprendes.",
                       },
                       language
@@ -1230,8 +1415,8 @@ export default function LearningModules({
                   {t(
                     {
                       en: "Answer the randomly selected questions below. Each quiz is unique and in your language.",
-                      hi: "नीचे दिए गए यादृच्छिक प्रश्नों का उत्तर दें। हर क्विज़ अनूठा है और आपकी भाषा में है।",
-                      es: "Responde las preguntas seleccionadas aleatoriamente a continuación. Cada cuestionario es único y en tu idioma.",
+                      hi: "नीचे दिए गए यादृच्छिक प्रश्नों का उत्तर दें। हर क्विज़ अनूठा है and आपकी भाषा में है।",
+                      es: "Responde las preguntas seleccionadas aleatoriamente a continuación. Cada cuestionario es único and en tu idioma.",
                     },
                     language
                   )}
@@ -1335,7 +1520,7 @@ export default function LearningModules({
                   {t(
                     {
                       en: "Earn badges as you progress. Passing this mission unlocks the next adventure.",
-                      hi: "जैसे-जैसे आगे बढ़ें, बैज कमाएँ। यह मिशन पास करने पर अगला एडवेंचर अनलॉक होगा।",
+                      hi: "जैसे-जैसे आगे बढ़ें, बैज कमाएँ। यह मिशन पاس करने पर अगला एडवेंचर अनलॉक होगा।",
                       es: "Gana insignias a medida que avanzas. Al aprobar esta misión, se desbloquea la siguiente aventura.",
                     },
                     language
@@ -1384,7 +1569,6 @@ export default function LearningModules({
                     <Button variant="secondary" onClick={() => setCurrentTab("quiz")}>
                       {t({ en: "Retake Quiz", hi: "क्विज़ दोहराएँ", es: "Repetir cuestionario" }, language)}
                     </Button>
-
                   </div>
                 </div>
               </CardContent>
