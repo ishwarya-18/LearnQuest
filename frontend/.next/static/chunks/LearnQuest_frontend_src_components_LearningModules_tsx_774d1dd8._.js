@@ -2640,7 +2640,7 @@ function LearningModules({ className, modules = DEFAULT_MODULES, initialLanguage
         columnNumber: 5
     }, this);
 }
-_s(LearningModules, "I6YwblE1Xf7IQS3MethSxK+mgoM=", false, function() {
+_s(LearningModules, "Kdc8FhRuP0wfDmznMd0GeIAXFo0=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$LearnQuest$2f$frontend$2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"]
     ];

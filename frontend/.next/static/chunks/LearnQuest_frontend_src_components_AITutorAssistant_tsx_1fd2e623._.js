@@ -1148,7 +1148,7 @@ function AITutorAssistant({ className, studentName = "Student", initialLanguage 
         columnNumber: 5
     }, this);
 }
-_s(AITutorAssistant, "mbOUPU0FgmrVEXeCKxUOLSrNr0s=");
+_s(AITutorAssistant, "ciF9CMkfBWewzVJOS0zydSS3jh8=");
 _c = AITutorAssistant;
 function ChatBubble({ role, content, timestamp }) {
     const isUser = role === "user";
