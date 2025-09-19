@@ -29,7 +29,6 @@ It allows students to play mini-games, take quizzes, watch videos, and track the
 
 ```
 learnquest/
-├─ backend/        # Node.js + Express backend
 ├─ frontend/       # React frontend
 │  ├─ src/
 │  │  ├─ components/
@@ -41,11 +40,8 @@ learnquest/
 ---
 
 ## Technologies Used
-- **Frontend:** React.js
-- **Backend:** Node.js, Express
-- **Database:** PostgreSQL
-- **Styling:** CSS / Tailwind (if applicable)
-- **Other:** JWT for authentication, REST API
+- Built with Next.js and Tailwind CSS.
+- Backend not yet implemented.
 
 ---
 
@@ -54,32 +50,18 @@ learnquest/
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/<YourUsername>/LearnQuest.git
+git clone https://github.com/ishwarya-18/LearnQuest.git
 cd LearnQuest
 ```
 
-2. Install backend dependencies:
-
-```bash
-cd backend
-npm install
-```
-
-3. Install frontend dependencies:
+2. Install frontend dependencies:
 
 ```bash
 cd ../frontend
 npm install
 ```
 
-4. Start the backend server:
-
-```bash
-cd ../backend
-node server.js
-```
-
-5. Start the frontend server:
+3. Start the frontend server:
 
 ```bash
 cd ../frontend
